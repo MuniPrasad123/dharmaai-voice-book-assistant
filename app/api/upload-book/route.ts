@@ -5,104 +5,139 @@
  * Accepts a PDF file via multipart/form-data.
  * Steps:
  *  1. Validate file exists and is a PDF
- *  2. Upload PDF to OpenAI Files API
- *  3. Create an OpenAI Vector Store
- *  4. Attach the file to the vector store (so it can be searched)
- *  5. Return fileId, vectorStoreId, bookName, and status
- *
- * Security: This runs server-side only. The OpenAI API key is never sent to the browser.
+ *  2. Extract text locally using pdf-parse
+ *  3. Split text into overlapping chunks
+ *  4. Generate embeddings for all chunks via local Ollama API
+ *  5. Store chunks & embeddings locally in data/books/[bookId].json
+ *  6. Return bookId, bookName, totalChunks, and status
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import openai from "@/lib/openai";
-import { UploadBookResponse } from "@/lib/types";
+import { promises as fs } from "fs";
+import path from "path";
+import { DocumentStore, RAGChunk, UploadBookResponse } from "@/lib/types";
+
+// Configuration for text chunking
+const CHUNK_SIZE = 800;
+const CHUNK_OVERLAP = 150;
+
+/**
+ * Splits text into overlapping chunks.
+ */
+function chunkText(text: string, size: number, overlap: number): string[] {
+  // Simple word-based or character-based chunking. Let's do simple character chunking.
+  // First, clean up the text (remove excessive newlines/spaces)
+  const cleanText = text.replace(/\s+/g, " ").trim();
+  
+  const chunks: string[] = [];
+  let i = 0;
+  
+  while (i < cleanText.length) {
+    const chunk = cleanText.slice(i, i + size);
+    chunks.push(chunk);
+    if (i + size >= cleanText.length) {
+      break;
+    }
+    // move forward by size minus overlap
+    i += (size - overlap);
+  }
+  
+  return chunks;
+}
 
 export async function POST(req: NextRequest) {
   try {
-    // ── Step 1: Parse the incoming multipart form data ──────────────────────
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
 
-    // Validate that a file was actually provided
     if (!file) {
       return NextResponse.json({ error: "No file provided." }, { status: 400 });
     }
-
-    // Validate that the uploaded file is a PDF
     if (file.type !== "application/pdf") {
-      return NextResponse.json(
-        { error: "Only PDF files are accepted." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Only PDF files are accepted." }, { status: 400 });
     }
 
-    // ── Step 2: Upload the PDF to OpenAI Files API ───────────────────────────
-    // Convert the File object to a Buffer that the OpenAI SDK can send
+    // ── Step 1: Extract Text from PDF ────────────────────────────────────────
+    const { extractTextFromPDF } = await import("@/lib/pdf-extract");
     const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    // The OpenAI Files API needs a file-like object with a name and type
-    const uploadedFile = await openai.files.create({
-      file: new File([buffer], file.name, { type: "application/pdf" }),
-      purpose: "assistants", // "assistants" purpose enables file search
-    });
-
-    console.log(`✅ File uploaded to OpenAI. File ID: ${uploadedFile.id}`);
-
-    // ── Step 3: Create an OpenAI Vector Store ────────────────────────────────
-    // A vector store is a searchable index of your document.
-    // OpenAI will automatically chunk, embed, and index the PDF content.
-    const vectorStore = await openai.vectorStores.create({
-      name: `DharmaAI - ${file.name}`, // human-readable label for the store
-    });
-
-    console.log(`✅ Vector Store created. ID: ${vectorStore.id}`);
-
-    // ── Step 4: Attach the PDF file to the vector store ─────────────────────
-    // This triggers OpenAI to process and index the PDF content.
-    // The file must finish processing before it can be searched.
-    await openai.vectorStores.files.create(vectorStore.id, {
-      file_id: uploadedFile.id,
-    });
-
-    console.log(`✅ File attached to Vector Store. Processing started.`);
-
-    // ── Step 5: Poll until the file finishes being indexed ──────────────────
-    // OpenAI processes files asynchronously. We poll until status = "completed"
-    let status = "in_progress";
-    let attempts = 0;
-    const maxAttempts = 30; // wait up to ~60 seconds
-
-    while (status === "in_progress" && attempts < maxAttempts) {
-      await new Promise((resolve) => setTimeout(resolve, 2000)); // wait 2 seconds
-      const fileStatus = await openai.vectorStores.files.retrieve(
-        vectorStore.id,
-        uploadedFile.id
-      );
-      status = fileStatus.status;
-      attempts++;
-      console.log(`📄 Indexing status: ${status} (attempt ${attempts})`);
+    const textContent = await extractTextFromPDF(new Uint8Array(arrayBuffer));
+    
+    if (!textContent || textContent.trim().length === 0) {
+       return NextResponse.json({ error: "Could not extract text from this PDF." }, { status: 400 });
     }
 
-    // ── Step 6: Return the result to the frontend ────────────────────────────
-    const response: UploadBookResponse = {
-      fileId: uploadedFile.id,
-      vectorStoreId: vectorStore.id,
+    // ── Step 2: Chunk the Text ───────────────────────────────────────────────
+    const chunks = chunkText(textContent, CHUNK_SIZE, CHUNK_OVERLAP);
+    console.log(`✅ Extracted ${chunks.length} chunks from PDF.`);
+
+    // ── Step 3: Generate Embeddings using local Ollama ───────────────────────
+    const ollamaUrl = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
+    const embedModel = process.env.OLLAMA_EMBEDDING_MODEL || "nomic-embed-text";
+
+    // Ollama /api/embed accepts an array of strings in "input"
+    const embedResponse = await fetch(`${ollamaUrl}/api/embed`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: embedModel,
+        input: chunks,
+      }),
+    });
+
+    if (!embedResponse.ok) {
+      const errorText = await embedResponse.text();
+      throw new Error(`Ollama embedding failed: ${errorText}`);
+    }
+
+    const embedData = await embedResponse.json();
+    const embeddings: number[][] = embedData.embeddings;
+
+    if (!embeddings || embeddings.length !== chunks.length) {
+      throw new Error("Mismatch between number of chunks and returned embeddings.");
+    }
+
+    // ── Step 4: Map to RAGChunk objects ──────────────────────────────────────
+    const ragChunks: RAGChunk[] = chunks.map((chunkText, index) => ({
+      id: `chunk-${index}`,
+      text: chunkText,
+      embedding: embeddings[index],
+    }));
+
+    // ── Step 5: Save to local filesystem (data/books/) ───────────────────────
+    const bookId = `book-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const documentStore: DocumentStore = {
+      bookId,
       bookName: file.name,
-      status: status,
+      chunks: ragChunks,
+    };
+
+    const dataDir = path.join(process.cwd(), "data", "books");
+    
+    // Ensure directory exists
+    try {
+      await fs.access(dataDir);
+    } catch {
+      await fs.mkdir(dataDir, { recursive: true });
+    }
+
+    const filePath = path.join(dataDir, `${bookId}.json`);
+    await fs.writeFile(filePath, JSON.stringify(documentStore), "utf-8");
+    
+    console.log(`✅ Indexed and saved book to ${filePath}`);
+
+    // ── Step 6: Return Response ──────────────────────────────────────────────
+    const response: UploadBookResponse = {
+      bookId,
+      bookName: file.name,
+      totalChunks: chunks.length,
+      status: "completed",
     };
 
     return NextResponse.json(response, { status: 200 });
+
   } catch (error: unknown) {
-    // Log the error server-side for debugging
     console.error("Error in /api/upload-book:", error);
-
-    const message =
-      error instanceof Error ? error.message : "Unknown error occurred.";
-
-    return NextResponse.json(
-      { error: `Upload failed: ${message}` },
-      { status: 500 }
-    );
+    const message = error instanceof Error ? error.message : "Unknown error occurred.";
+    return NextResponse.json({ error: `Upload failed: ${message}` }, { status: 500 });
   }
 }

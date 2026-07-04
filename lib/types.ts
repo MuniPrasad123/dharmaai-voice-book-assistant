@@ -18,37 +18,39 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string; // the text of the message
   timestamp: Date; // when the message was sent
+  sources?: string[]; // retrieved chunks for this message
+}
+
+// ──────────────────────────────────────────────
+// Local RAG Types
+// ──────────────────────────────────────────────
+
+export interface RAGChunk {
+  id: string;
+  text: string;
+  embedding: number[];
+}
+
+export interface DocumentStore {
+  bookId: string;
+  bookName: string;
+  chunks: RAGChunk[];
 }
 
 // ──────────────────────────────────────────────
 // API response types
 // ──────────────────────────────────────────────
 
-/**
- * Response returned by /api/upload-book
- * after a PDF is uploaded and indexed.
- */
 export interface UploadBookResponse {
-  fileId: string; // OpenAI file ID
-  vectorStoreId: string; // OpenAI vector store ID
-  bookName: string; // original filename of the PDF
-  status: string; // e.g. "completed", "in_progress"
+  bookId: string;
+  bookName: string;
+  totalChunks: number;
+  status: string;
 }
 
-/**
- * Response returned by /api/chat
- * Contains the AI-generated answer.
- */
 export interface ChatResponse {
-  answer: string; // AI answer based on the uploaded book
-}
-
-/**
- * Response returned by /api/transcribe
- * Contains the transcribed text from user audio.
- */
-export interface TranscribeResponse {
-  text: string; // transcribed speech-to-text result
+  answer: string;
+  sources: string[];
 }
 
 /**
