@@ -26,7 +26,7 @@ export function DharmaTechStack(){
   return <section className={styles.section} aria-labelledby="dharma-stack-title">
     <h3 id="dharma-stack-title">Explore the technology stack</h3>
     <p>Choose an icon to see where the technology fits and how this project uses it.</p>
-    <div className={styles.grid} role="group" aria-label="DharmaAI technologies">{stack.map((tech,index)=>{const Icon=tech.icon;return <button key={tech.name} type="button" aria-pressed={selected===index} aria-controls="dharma-tech-detail" onClick={()=>setSelected(index)}><Icon size={25} aria-hidden="true"/><span>{tech.name}</span><small>{tech.layer}</small></button>})}</div>
+    <div className={styles.grid} role="group" aria-label="DharmaAI technologies">{stack.map((tech,index)=>{const Icon=tech.icon;return <button key={tech.name} type="button" aria-pressed={selected===index} aria-controls="dharma-tech-detail" title={tech.layer} onClick={()=>setSelected(index)}><Icon size={19} aria-hidden="true"/><span>{tech.name}</span></button>})}</div>
     <div className={styles.detail} id="dharma-tech-detail" aria-live="polite"><ActiveIcon size={28} aria-hidden="true"/><div><span>{item.layer}</span><h4>{item.name}</h4><p>{item.detail}</p><a href={'https://github.com/MuniPrasad123/dharmaai-voice-book-assistant/blob/main/'+item.code} target="_blank" rel="noreferrer">See {item.code} ↗</a></div></div>
   </section>
 }
