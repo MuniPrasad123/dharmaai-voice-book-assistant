@@ -1,0 +1,13 @@
+Meet Dharma AI, a local book knowledge assistant.
+
+Upload a PDF to begin. The app extracts text, creates overlapping chunks, and generates embeddings with Ollama.
+
+Once indexed, ask a question about the book. Dharma AI retrieves relevant passages and generates an answer grounded in the document.
+
+Here, it correctly identifies the five Pandava brothers. Expand View Sources to inspect the supporting text.
+
+Audio controls let you hear the answer. An unrelated recipe question is rejected, rather than answered from general knowledge.
+
+Voice input and spoken answers were also tested successfully by the project owner.
+
+This recorded walkthrough stays available even when the optional local demo is offline.

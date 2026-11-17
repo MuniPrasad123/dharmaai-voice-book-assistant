@@ -1,0 +1,2 @@
+# PDF byte offsets must not change with platform line endings.
+*.pdf binary

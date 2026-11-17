@@ -1,0 +1,45 @@
+WEBVTT
+
+1
+00:00:00.100 --> 00:00:04.760
+Meet Dharma AI, a local book knowledge assistant.
+
+2
+00:00:04.710 --> 00:00:07.513
+Upload a PDF to begin.
+
+3
+00:00:07.513 --> 00:00:15.026
+The app extracts text, creates overlapping chunks, and generates embeddings with Ollama.
+
+4
+00:00:15.026 --> 00:00:19.144
+Once indexed, ask a question about the book.
+
+5
+00:00:19.144 --> 00:00:26.381
+Dharma AI retrieves relevant passages and generates an answer grounded in the document.
+
+6
+00:00:26.381 --> 00:00:31.118
+Here, it correctly identifies the five Pandava brothers.
+
+7
+00:00:31.118 --> 00:00:35.460
+Expand View Sources to inspect the supporting text.
+
+8
+00:00:35.460 --> 00:00:39.000
+Audio controls let you hear the answer.
+
+9
+00:00:39.000 --> 00:00:46.263
+An unrelated recipe question is rejected, rather than answered from general knowledge.
+
+10
+00:00:46.263 --> 00:00:53.289
+Voice input and spoken answers were also tested successfully by the project owner.
+
+11
+00:00:53.289 --> 00:01:00.000
+This recorded walkthrough stays available even when the optional local demo is offline.

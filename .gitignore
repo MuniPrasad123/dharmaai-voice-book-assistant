@@ -41,3 +41,11 @@ yarn-error.log*
 next-env.d.ts
  
 data/ 
+
+# Intermediate browser capture frames; publish the edited MP4 instead.
+/docs/demo/frames/
+/docs/demo/capture.ffconcat
+/docs/demo/captions.srt
+/docs/demo/gif-frames/
+/docs/demo/*-preview.jpg
+/docs/demo/video-check.jpg

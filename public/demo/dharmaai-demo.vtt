@@ -1,0 +1,40 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:04.710
+DharmaAI | Local book knowledge assistant
+
+00:00:04.710 --> 00:00:07.513
+1. Select an original sample PDF
+
+00:00:07.513 --> 00:00:15.026
+2. Extract text and index with local embeddings | wait shortened
+
+00:00:15.026 --> 00:00:16.526
+3. Book indexed locally | three searchable chunks
+
+00:00:16.526 --> 00:00:19.144
+4. Ask a question about the book
+
+00:00:19.144 --> 00:00:26.381
+5. Retrieve context and call Ollama | inference wait shortened
+
+00:00:26.381 --> 00:00:31.118
+6. A real generated answer grounded in the uploaded PDF
+
+00:00:31.118 --> 00:00:35.460
+7. Expand the retrieved source passages
+
+00:00:35.460 --> 00:00:39.000
+8. Spoken playback | verified by the project owner
+
+00:00:39.000 --> 00:00:41.500
+9. Try a question outside the book
+
+00:00:41.500 --> 00:00:46.263
+10. Unrelated question rejected without a generation call
+
+00:00:46.263 --> 00:00:53.289
+Voice input and playback confirmed by the owner | controls shown
+
+00:00:53.289 --> 00:01:00.100
+Recorded demo available independently of the optional local app
